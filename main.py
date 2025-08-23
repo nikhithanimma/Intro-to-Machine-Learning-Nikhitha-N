@@ -49,8 +49,8 @@ y = df["HeartDisease"]
 X_train, X_test, y_train, y_test = train_test_split(X,y, random_state = 6)
 
 
-from sklearn.tree import DecisionTreeClassifier
-clf = DecisionTreeClassifier(max_depth = 6, class_weight = "balanced")
+from sklearn.ensemble import RandomForestClassifier
+clf = RandomForestClassifier(n_estimators = 5, class_weight = 'balanced', max_depth = 2)
 clf = clf.fit(X_train, y_train)
 
 
@@ -96,4 +96,10 @@ print("\n A Decision Tree can be used in another field such as business in order
 #Prints a text representation of the Decision Tree
 print("\nBelow is a text representation of how the Decision Tree makes choices:\n")
 input("\nPress Enter to continue.\n")
-util.printTree(clf, X.columns)
+
+from sklearn.tree import plot_tree
+import matplotlib.pyplot as plt
+
+for x in range(0, 5):
+    plot_tree(clf.estimators_[x], feature_names=X.columns, filled=True)
+    plt.show()
