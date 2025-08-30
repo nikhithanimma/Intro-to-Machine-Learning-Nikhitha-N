@@ -1,5 +1,12 @@
 import pandas as pd
 import GWCutilities as util
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score
+from sklearn.tree import plot_tree
+import matplotlib.pyplot as plt
 
 pd.set_option('display.max_columns', None)
 pd.set_option('max_colwidth', None)
@@ -42,64 +49,93 @@ input("\nPress Enter to continue.\n")
 
 
 #Creates and trains Decision Tree Model
-from sklearn.model_selection import train_test_split
 X = df.drop("HeartDisease", axis = 1)
 y = df["HeartDisease"]
 
 X_train, X_test, y_train, y_test = train_test_split(X,y, random_state = 6)
 
-
-from sklearn.ensemble import RandomForestClassifier
-clf = RandomForestClassifier(n_estimators = 5, class_weight = 'balanced', max_depth = 2)
-clf = clf.fit(X_train, y_train)
-
+##Defining both of the models
+dt_model = DecisionTreeClassifier(max_depth=6, class_weight="balanced")
+rf_model = RandomForestClassifier(n_estimators=5,class_weight="balanced", max_depth=2)
 
 
+dt_model.fit(X_train, y_train)
+rf_model.fit(X_train, y_train)
+
+def evaluate_model(model, model_name, show_tree=False):
+    """Prints accuracy, confusion matrix, and optional tree plots."""
+
+    print(f"\n---{model_name} Results ---")
+    test_pred = model.predict(X_test)
+    train_pred = model.predict(X_train)
+
+    print("Test Accuracy:", accuracy_score(y_test, test_pred))
+    print("Train Accuracy:", accuracy_score(y_train, train_pred))
+    print("Confusion Matrix:\n", confusion_matrix(y_test, test_pred, labels = [1,0]))
+
+    if show_tree and model_name == "Decision Tree":
+        util.printTree(model, X.columns)
+    elif show_tree and model_name == "Random Forest":
+        for i, tree in enumerate(model.estimators_):
+            plot_tree(tree, feature_names=X.columns, filled = True)
+            plt.title(f"Random Forest Tree {i+1}")
+            plt.show()
+            
 
 
-#Test the model with the testing data set and prints accuracy score
-test_predictions = clf.predict(X_test)
+def user_input_prediction(): 
+    print("\nEnter the following information to predict Heart Disease:\n")
 
-from sklearn.metrics import accuracy_score
-test_acc = accuracy_score(y_test, test_predictions)
-print("The accuracy with the testing data set of the Desicion Tree is: " + str(test_acc))
+    sex = input("Sex (Male/Female): ")
+    age = input("AgeCategory (e.g. 18-24, 25-29,...): ")
+    bmi = float(input("BMI (number): "))
+    smoking = input ("Smoking (Yes/No): ")
+    alcohol = input("AlchoholDrinking (Yes/No): ")
+    activity = input("PhysicalActivity (Yes/No): ")
+    health = input("GenHealth (Poor, Fair, Good, Very good, Excellent): ")
+    race = input("Race (White, Black, Asian, Hispanic, Other): ")
 
+    user_df = pd.DataFrame([{
+        "BMI": bmi,
+        "Sex": sex, 
+        "AgeCategory": age, 
+        "Smoking": smoking,
+        "AlcoholDrinking": alcohol, 
+        "PhysicalActivity": activity, 
+        "GenHealth": health, 
+        "Race": race
+    }])
 
-#Prints the confusion matrix
-from sklearn.metrics import confusion_matrix
-cm = confusion_matrix(y_test, test_predictions, labels=[1,0])
-print("The confusion matrix of the tree is: ")
-print(cm)
+    user_df = util.labelEncoder(user_df, [
+        "Smoking", "AlcoholDrinking", "Sex", 
+        "AgeCategory", "PhysicalActivity", "GenHealth"
+    ])
+    user_df = util.oneHotEncoder(user_df, ["Race"])
 
+    user_df = user_df.reindex(columns=X.columns,fill_value=0 )
 
+    dt_pred = dt_model.predict(user_df)[0]
+    rf_pred = rf_model.predict(user_df)[0]
 
+    print("\n--- Prediction Comparison ---")
+    print("Decision Tree says:", "Heart Disease" if dt_pred == 1 else "No Heart Disease")
+    print("Random Forest says:", "Heart Disease" if rf_pred == 1 else "No Heart Disease")
 
-#Test the model with the training data set and prints accuracy score
-train_predictions = clf.predict(X_train)
+#Interactive flow of the chat
+choice = input("\nWhich method would you like to see first? (Decision/Random): ").strip().lower()
 
-from sklearn.metrics import accuracy_score
-train_acc = accuracy_score(y_train, train_predictions)
-print("The accuracy with the training data set of the Desicion Tree is: " + str(train_acc))
+if choice.startswith("d"):
+    evaluate_model(dt_model, "Decision Tree", show_tree = True)
+    other = input("\n Would like to also see the results of the Random Forest? (yes/no): ").strip().lower()
+    if other.startswith("y"):
+        evaluate_model(rf_model, "Random Forest",
+        show_tree=True)
+else: 
+    evaluate_model(rf_model, "Random Forest",
+show_tree=True)
+    other = input("\n Would like to also see the results of the Decision Tree? (yes/no): ").strip().lower()
+    if other.startswith("y"):
+        evaluate_model(dt_model, "Decision Tree",
+        show_tree=True)
 
-
-
-input("\nPress Enter to continue.\n")
-
-
-
-#Prints another application of Decision Trees and considerations
-print("\nBelow is another application of decision trees and considerations for using them:\n")
-print("\n A Decision Tree can be used in another field such as business in order to reccomend products or predict how the stock market will perform, based on data from the past. \n To ensure the model performs fairly, it is important to avoid biased data, maintain a balanced distribution to make sure the model doesn't facor one group, and avoid overfitting by limiting the max depth.")
-
-
-
-#Prints a text representation of the Decision Tree
-print("\nBelow is a text representation of how the Decision Tree makes choices:\n")
-input("\nPress Enter to continue.\n")
-
-from sklearn.tree import plot_tree
-import matplotlib.pyplot as plt
-
-for x in range(0, 5):
-    plot_tree(clf.estimators_[x], feature_names=X.columns, filled=True)
-    plt.show()
+user_input_prediction()
